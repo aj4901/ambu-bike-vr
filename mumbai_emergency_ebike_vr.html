@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Mumbai Emergency E-Bike VR — Single Self-Contained HTML</title>
+  <meta name="description" content="A walkable, VR-ready 3D scene of a rapid-response emergency medical e-bike in Mumbai with GLTF city loading and high-speed ride." />
+
+  <!--
+    =========================================================================
+    DESIGN STUDENT NOTE: CDN IMPORT MAP
+    =========================================================================
+    Instead of using npm, Node.js, or complex build bundlers (like Webpack or Vite),
+    modern browsers support "Import Maps". This maps the bare specifier 'three'
+    and 'three/addons/' directly to the official Three.js ES modules on the jsdelivr CDN.
+    This means this SINGLE .html file can run on any web browser directly!
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    /* RESET & IMMERSIVE VIEWPORT STYLES */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b0f19;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #ffffff;
+    }
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* VR BUTTON (PROMINENT FLOATING BUTTON) */
+    #VRButton {
+      position: fixed !important;
+      bottom: 24px !important;
+      right: 24px !important;
+      left: auto !important;
+      z-index: 1000 !important;
+      padding: 12px 24px !important;
+      border: 2px solid #00f0ff !important;
+      border-radius: 6px !important;
+      background: #0f172a !important;
+      color: #ffffff !important;
+      font-size: 13px !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase !important;
+      box-shadow: 0 8px 24px rgba(0, 240, 255, 0.4) !important;
+      cursor: pointer !important;
+      transition: all 0.15s ease !important;
+    }
+    #VRButton:hover {
+      background: #00f0ff !important;
+      color: #090d16 !important;
+    }
+
+    /* VALORANT-INSPIRED TACTICAL HUD */
+    .hud-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 24px;
+      background: linear-gradient(to bottom, rgba(11, 15, 25, 0.92), transparent);
+      pointer-events: none;
+    }
+    .hud-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      pointer-events: auto;
+    }
+    .hud-brand h1 {
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff4655;
+      box-shadow: 0 0 10px #ff4655;
+      animation: blink 1.2s infinite ease-in-out;
+    }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .hud-brand p { font-size: 11px; color: #94a3b8; }
+
+    .hud-actions {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .hud-btn {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .hud-btn:hover {
+      background: #00f0ff;
+      color: #0b0f19;
+      border-color: #00f0ff;
+    }
+    .hud-btn.active {
+      border-color: #00f0ff;
+      color: #00f0ff;
+      background: rgba(0, 240, 255, 0.15);
+    }
+
+    /* TELEMETRY & PHASE BANNER */
+    .phase-panel {
+      position: absolute;
+      top: 74px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 90;
+      background: rgba(11, 15, 25, 0.92);
+      border: 1px solid #00f0ff;
+      border-radius: 6px;
+      padding: 10px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+    }
+    .phase-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .telemetry-val {
+      font-size: 20px;
+      font-weight: 900;
+      font-family: monospace;
+      color: #00f0ff;
+    }
+    .progress-bar-wrap {
+      width: 240px;
+      height: 4px;
+      background: #1e293b;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00f0ff, #ff4655);
+      transition: width 0.1s linear;
+    }
+
+    /* GUIDE PANEL */
+    .guide-legend {
+      position: absolute;
+      top: 76px;
+      left: 24px;
+      z-index: 80;
+      background: rgba(11, 15, 25, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.6;
+      max-width: 250px;
+      pointer-events: none;
+    }
+    .guide-key {
+      background: #1e293b;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: monospace;
+      color: #00f0ff;
+      font-weight: 700;
+    }
+
+    /* PROXIMITY INSPECT CARD */
+    .inspect-card {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      z-index: 95;
+      width: 340px;
+      background: rgba(11, 15, 25, 0.95);
+      border: 1px solid #00f0ff;
+      border-radius: 6px;
+      padding: 14px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+      display: none;
+    }
+    .inspect-card h3 {
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #00f0ff;
+      margin-bottom: 4px;
+    }
+    .inspect-card p {
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+
+    /* INTRO / START OVERLAY */
+    #start-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 500;
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.94) 0%, rgba(7, 10, 18, 0.98) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      cursor: pointer;
+      text-align: center;
+    }
+    #start-overlay.hidden { display: none; }
+    .start-btn {
+      margin-top: 14px;
+      padding: 12px 24px;
+      background: #00f0ff;
+      color: #0b0f19;
+      font-weight: 900;
+      font-size: 13px;
+      text-transform: uppercase;
+      border-radius: 4px;
+    }
+
+    #reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ffffff;
+      pointer-events: none;
+      z-index: 90;
+      display: none;
+    }
+    #reticle.active {
+      width: 12px;
+      height: 12px;
+      background: rgba(0, 240, 255, 0.4);
+      border: 2px solid #00f0ff;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+  <div id="reticle"></div>
+
+  <header class="hud-top">
+    <div class="hud-brand">
+      <h1><span class="pulse-dot"></span> Mumbai EMS // Rapid Ambu-Bike</h1>
+      <p id="hud-status">Phase 1: High-Speed Ride En-Route (12s)</p>
+    </div>
+    <div class="hud-actions">
+      <button class="hud-btn" id="btn-sound">Audio: Off [M]</button>
+      <button class="hud-btn" id="btn-view">Cockpit [F]</button>
+      <button class="hud-btn" id="btn-skip">Skip to Arrival [Space]</button>
+      <button class="hud-btn" id="btn-replay">Replay Ride [R]</button>
+    </div>
+  </header>
+
+  <div class="phase-panel" id="phase-panel">
+    <div class="phase-row">
+      <div><span style="font-size: 9px; color: #64748b; font-weight: 800;">SPEED</span> <span class="telemetry-val" id="speed-label">88</span> <span style="font-size: 11px; color:#94a3b8;">KM/H</span></div>
+      <div><span style="font-size: 9px; color: #64748b; font-weight: 800;">ARRIVAL</span> <span class="telemetry-val" style="color: #ff4655;" id="timer-label">12.0s</span></div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+  </div>
+
+  <div class="guide-legend" id="guide-legend">
+    <div style="font-weight: 900; color: #00f0ff; margin-bottom: 4px; text-transform: uppercase;">Controls & VR</div>
+    <div>Walk / Steer: <span class="guide-key">W A S D</span> / Left Stick</div>
+    <div>Look / Turn: <span class="guide-key">Mouse</span> / Right Stick (30° Snap)</div>
+    <div>Sprint: <span class="guide-key">Shift</span> · Inspect: Walk Up or <span class="guide-key">E</span></div>
+    <div>Toggle View: <span class="guide-key">F</span> · Audio: <span class="guide-key">M</span></div>
+  </div>
+
+  <div class="inspect-card" id="inspect-card">
+    <h3 id="inspect-title">Feature Title</h3>
+    <p id="inspect-desc">Description of interactive medical asset.</p>
+  </div>
+
+  <div id="start-overlay">
+    <h2 style="font-size: 26px; font-weight: 900; text-transform: uppercase; color: #ffffff; letter-spacing: 0.08em;">Mumbai EMS Ambu-Bike VR</h2>
+    <p style="max-width: 480px; margin-top: 10px; font-size: 13px; color: #94a3b8; line-height: 1.6;">
+      Start on the high-speed electric Ambu-Bike navigating through the authentic Mumbai city corridor, then dismount at the stabilization scene to inspect the patient and deployed gear.
+    </p>
+    <div class="start-btn">Click to Enter Scene</div>
+  </div>
+
+  <!--
+    =========================================================================
+    DESIGN STUDENT NOTE: EMBEDDED JAVASCRIPT MODULE
+    =========================================================================
+    Everything is contained in this script block. It imports Three.js and GLTFLoader
+    from the CDN via the import map defined in the HTML head.
+  -->
+  <script type="module" src="/src/standalone_app.js"></script>
+</body>
+</html>
